@@ -35,20 +35,6 @@ type AutocompleteService struct {
 	// TODO: Log
 }
 
-type ServiceConfig struct {
-	ServiceName      string
-	MaxResults       int
-	SnapshotsEnabled bool
-	SnapshotInterval int
-
-	AutomaticUpdates       bool
-	LoadDataSourcesOnStart bool
-	LowMemoryMode          bool
-
-	SnapshotDest DataSource
-	DataSources  []DataSource
-}
-
 // New creates a new AutocompleteService instance and performs all of the setup.
 // This makes a call to LoadDataSources(). If you wish to skip this,
 // set the LoadDataSourcesOnStart option to false.
