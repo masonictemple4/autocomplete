@@ -145,3 +145,8 @@ func (t *ternarysearchtree) ListContents() []string {
 
 	return results
 }
+
+// Make the root empty, removing all references to the old data.
+func (t *ternarysearchtree) Clear() {
+	t.Root = &tstNode{}
+}

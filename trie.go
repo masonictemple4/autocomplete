@@ -114,3 +114,8 @@ func (t *trie) ListContents() []string {
 
 	return results
 }
+
+// Make the root empty, removing all references to the old data.
+func (t *trie) Clear() {
+	t.Root = &trieNode{children: make(map[rune]*trieNode)}
+}
