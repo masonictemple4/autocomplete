@@ -294,6 +294,8 @@ func NewGoogleStorageBucketProvider(name string, timeout time.Duration, creds *g
 // read operation or write operation was being performed and closing that reader
 // and writer. Might have to change this.
 func (g *GoogleStorageBucketProvider) Close() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	if g.clientClosed || g.client == nil {
 		return nil
