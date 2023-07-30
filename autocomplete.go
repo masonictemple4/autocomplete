@@ -25,8 +25,7 @@ type autocompleter interface {
 // It also provides a direct interface to interact with the autocompleter. That
 // makes it easier than having to access the store to interface with the functionality.
 type AutocompleteService struct {
-	Config           ServiceConfig
-	DataSourceConfig DataSourceConfig
+	Config ServiceConfig
 
 	store autocompleter
 
@@ -45,9 +44,7 @@ type ServiceConfig struct {
 	AutomaticUpdates       bool
 	LoadDataSourcesOnStart bool
 	LowMemoryMode          bool
-}
 
-type DataSourceConfig struct {
 	SnapshotDest DataSource
 	DataSources  []DataSource
 }
@@ -58,7 +55,7 @@ type DataSourceConfig struct {
 //
 // You can also pass in a slice of keywords when calling this function to initialize
 // your service store with.
-func New(opts ServiceConfig, dsOpts DataSourceConfig, keywords []string) (*AutocompleteService, error) {
+func New(opts ServiceConfig, keywords []string) (*AutocompleteService, error) {
 	var store autocompleter
 	if opts.LowMemoryMode {
 		store = newTernarySearchTree("")
@@ -67,10 +64,9 @@ func New(opts ServiceConfig, dsOpts DataSourceConfig, keywords []string) (*Autoc
 	}
 
 	service := &AutocompleteService{
-		Config:           opts,
-		DataSourceConfig: dsOpts,
-		store:            store,
-		Errors:           make([]error, 0),
+		Config: opts,
+		store:  store,
+		Errors: make([]error, 0),
 	}
 
 	for _, keyword := range keywords {
@@ -110,13 +106,13 @@ func (a *AutocompleteService) Close() error {
 	}
 	// Check SnapshotDest DataSource
 	var errs []error
-	snpErr := a.DataSourceConfig.SnapshotDest.Provider.Close()
+	snpErr := a.Config.SnapshotDest.Provider.Close()
 	if snpErr != nil {
 		errs = append(errs, snpErr)
 	}
 
-	for i := range a.DataSourceConfig.DataSources {
-		err := a.DataSourceConfig.DataSources[i].Provider.Close()
+	for i := range a.Config.DataSources {
+		err := a.Config.DataSources[i].Provider.Close()
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -141,7 +137,7 @@ func (a *AutocompleteService) LoadDataSources() error {
 		return fmt.Errorf("autocompleteservice: loaddatasources: service is closed.")
 	}
 
-	for _, source := range a.DataSourceConfig.DataSources {
+	for _, source := range a.Config.DataSources {
 		err := source.Provider.ReadData(source.Filepath, a.store, source.Formatter)
 		if err != nil {
 			a.Errors = append(a.Errors, err)
@@ -154,14 +150,14 @@ func (a *AutocompleteService) LoadDataSources() error {
 }
 
 func (a *AutocompleteService) AddSnapshotDest(dest DataSource) {
-	a.DataSourceConfig.SnapshotDest = dest
+	a.Config.SnapshotDest = dest
 }
 
 func (a *AutocompleteService) CreateSnapshot() error {
 	if a.isClosed {
 		return fmt.Errorf("autocompleteservice: loaddatasources: service is closed.")
 	}
-	err := a.DataSourceConfig.SnapshotDest.Provider.DumpData(a.DataSourceConfig.SnapshotDest.Filepath, a.store, a.DataSourceConfig.SnapshotDest.Formatter)
+	err := a.Config.SnapshotDest.Provider.DumpData(a.Config.SnapshotDest.Filepath, a.store, a.Config.SnapshotDest.Formatter)
 	if err != nil {
 		a.Errors = append(a.Errors, err)
 	}
@@ -172,7 +168,7 @@ func (a *AutocompleteService) RestoreFromSnapshot() error {
 	if a.isClosed {
 		return fmt.Errorf("autocompleteservice: loaddatasources: service is closed.")
 	}
-	err := a.DataSourceConfig.SnapshotDest.Provider.ReadData(a.DataSourceConfig.SnapshotDest.Filepath, a.store, a.DataSourceConfig.SnapshotDest.Formatter)
+	err := a.Config.SnapshotDest.Provider.ReadData(a.Config.SnapshotDest.Filepath, a.store, a.Config.SnapshotDest.Formatter)
 	if err != nil {
 		a.Errors = append(a.Errors, err)
 		return err
