@@ -22,9 +22,9 @@ type ServiceConfig struct {
 /* Config Functions */
 
 // A type to help with a new pattern for passing options to the New() function.
-type configFn func(*ServiceConfig)
+type ConfigFn func(*ServiceConfig)
 
-func WithServiceName(name string) configFn {
+func WithServiceName(name string) ConfigFn {
 	return func(c *ServiceConfig) {
 		c.ServiceName = name
 	}
@@ -32,7 +32,7 @@ func WithServiceName(name string) configFn {
 
 // WithMaxResults sets the maximum number of results to return
 // Leave this as 0 for unlimited.
-func WithMaxResults(max int) configFn {
+func WithMaxResults(max int) ConfigFn {
 	return func(c *ServiceConfig) {
 		c.MaxResults = max
 	}
@@ -54,19 +54,19 @@ func WithLowMemoryMode(c *ServiceConfig) {
 	c.LowMemoryMode = true
 }
 
-func WithSnapshotInterval(interval int) configFn {
+func WithSnapshotInterval(interval int) ConfigFn {
 	return func(c *ServiceConfig) {
 		c.SnapshotInterval = interval
 	}
 }
 
-func WithSnapshotDest(dest DataSource) configFn {
+func WithSnapshotDest(dest DataSource) ConfigFn {
 	return func(c *ServiceConfig) {
 		c.SnapshotDest = &dest
 	}
 }
 
-func WithDataSources(sources []DataSource) configFn {
+func WithDataSources(sources []DataSource) ConfigFn {
 	return func(c *ServiceConfig) {
 		c.DataSources = sources
 	}
@@ -88,7 +88,7 @@ func WithDataSources(sources []DataSource) configFn {
 //
 // Will create a new ServiceConfig with the default values,
 // then update Service name, MaxResults, and enable snapshots.
-func NewServiceConfig(opts ...configFn) *ServiceConfig {
+func NewServiceConfig(opts ...ConfigFn) *ServiceConfig {
 	config := defaultConfig()
 	for _, opt := range opts {
 		opt(config)
