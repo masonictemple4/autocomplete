@@ -25,7 +25,7 @@ type autocompleter interface {
 // It also provides a direct interface to interact with the autocompleter. That
 // makes it easier than having to access the store to interface with the functionality.
 type AutocompleteService struct {
-	Config ServiceConfig
+	Config *ServiceConfig
 
 	store autocompleter
 
@@ -41,7 +41,10 @@ type AutocompleteService struct {
 //
 // You can also pass in a slice of keywords when calling this function to initialize
 // your service store with.
-func New(opts ServiceConfig, keywords []string) (*AutocompleteService, error) {
+func New(opts *ServiceConfig, keywords []string) (*AutocompleteService, error) {
+	if opts == nil {
+		return nil, fmt.Errorf("autocompleteservice: new: opts cannot be nil")
+	}
 	var store autocompleter
 	if opts.LowMemoryMode {
 		store = newTernarySearchTree("")
@@ -136,13 +139,18 @@ func (a *AutocompleteService) LoadDataSources() error {
 }
 
 func (a *AutocompleteService) AddSnapshotDest(dest DataSource) {
-	a.Config.SnapshotDest = dest
+	a.Config.SnapshotDest = &dest
 }
 
 func (a *AutocompleteService) CreateSnapshot() error {
 	if a.isClosed {
 		return fmt.Errorf("autocompleteservice: loaddatasources: service is closed.")
 	}
+
+	if a.Config.SnapshotDest == nil {
+		return fmt.Errorf("autocompleteservice: createsnapshot: no snapshot destination set")
+	}
+
 	err := a.Config.SnapshotDest.Provider.DumpData(a.Config.SnapshotDest.Filepath, a.store, a.Config.SnapshotDest.Formatter)
 	if err != nil {
 		a.Errors = append(a.Errors, err)
@@ -154,6 +162,11 @@ func (a *AutocompleteService) RestoreFromSnapshot() error {
 	if a.isClosed {
 		return fmt.Errorf("autocompleteservice: loaddatasources: service is closed.")
 	}
+
+	if a.Config.SnapshotDest == nil {
+		return fmt.Errorf("autocompleteservice: createsnapshot: no snapshot destination set")
+	}
+
 	err := a.Config.SnapshotDest.Provider.ReadData(a.Config.SnapshotDest.Filepath, a.store, a.Config.SnapshotDest.Formatter)
 	if err != nil {
 		a.Errors = append(a.Errors, err)

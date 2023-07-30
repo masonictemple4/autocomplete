@@ -15,7 +15,7 @@ type ServiceConfig struct {
 	LoadDataSourcesOnStart bool
 	LowMemoryMode          bool
 
-	SnapshotDest DataSource
+	SnapshotDest *DataSource
 	DataSources  []DataSource
 }
 
@@ -62,7 +62,7 @@ func WithSnapshotInterval(interval int) configFn {
 
 func WithSnapshotDest(dest DataSource) configFn {
 	return func(c *ServiceConfig) {
-		c.SnapshotDest = dest
+		c.SnapshotDest = &dest
 	}
 }
 
@@ -88,22 +88,22 @@ func WithDataSources(sources []DataSource) configFn {
 //
 // Will create a new ServiceConfig with the default values,
 // then update Service name, MaxResults, and enable snapshots.
-func NewServiceConfig(opts ...configFn) ServiceConfig {
+func NewServiceConfig(opts ...configFn) *ServiceConfig {
 	config := defaultConfig()
 	for _, opt := range opts {
-		opt(&config)
+		opt(config)
 	}
 	return config
 }
 
-func defaultConfig() ServiceConfig {
+func defaultConfig() *ServiceConfig {
 	d, err := NewLocalFileProvider("/var/tmp/autocomplete/snapshot.json")
 	if err != nil {
 		panic(err)
 	}
 
 	snapshotDest := NewDataSource(d, DefaultFormat{}, d.Filename, "")
-	return ServiceConfig{
+	return &ServiceConfig{
 		ServiceName:            SERVICE_NAME,
 		MaxResults:             0,
 		SnapshotsEnabled:       false,
@@ -112,7 +112,7 @@ func defaultConfig() ServiceConfig {
 		LoadDataSourcesOnStart: false,
 		LowMemoryMode:          false,
 
-		SnapshotDest: *snapshotDest,
+		SnapshotDest: snapshotDest,
 	}
 
 }
