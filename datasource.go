@@ -29,6 +29,7 @@ import (
 type DataProvider interface {
 	ReadData(fileName string, store PublicProviderStore, fmtr Formatter) error
 	DumpData(fileName string, store PublicProviderStore, fmtr Formatter) error
+	Close() error
 }
 
 // By implementing this interface the user can mock their store when testing their custom
@@ -104,6 +105,10 @@ type GithubProvider struct {
 	SourceOnly bool
 
 	client *github.Client
+
+	clientClosed bool
+
+	mu sync.Mutex
 }
 
 type GithubOpts struct {
@@ -130,7 +135,34 @@ func NewGithubProvider(authToken string, opts GithubOpts) *GithubProvider {
 	return provider
 }
 
+// Really doesn't do much other than set the closed flag to true.
+// And remove any references to the client.
+// If the github.Client, implements a Transport with CloseIdleConnections() method
+// then any idle connections will be closed, otherwise this method is a no-op.
+func (g *GithubProvider) Close() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.clientClosed || g.client == nil {
+		return nil
+	}
+
+	// There really isn't a cleanup/close method on the github.Client(), however
+	// i did find that they're using a http.Client() under the hood. So we can
+	// close the idle connections on that client because they're using a &http.Transport object.
+	// which implements the CloseIdleConnections() method.
+	g.client.Client().CloseIdleConnections()
+	g.client = nil
+
+	g.clientClosed = true
+
+	return nil
+}
+
 func (g *GithubProvider) ReadData(fileName string, store PublicProviderStore, fmtr Formatter) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	if g.client == nil {
 		return errors.New("datasource githubprovider: cannot read from github without a valid access token or client.")
 	}
@@ -162,6 +194,9 @@ func (g *GithubProvider) ReadData(fileName string, store PublicProviderStore, fm
 }
 
 func (g *GithubProvider) DumpData(msg, fileName string, store PublicProviderStore, fmtr Formatter) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	if g.client == nil {
 		return errors.New("datasource githubprovider: cannot write to github without a valid access token or client.")
 	}
@@ -231,8 +266,11 @@ type GoogleStorageBucketProvider struct {
 	// DefaultTimeout will be 5 minutes.
 	DefaultTimeout time.Duration
 
-	credentials *google.Credentials
-	client      *storage.Client
+	credentials  *google.Credentials
+	client       *storage.Client
+	clientClosed bool
+
+	mu sync.Mutex
 }
 
 // Pass 0 for timeout if you wish to use a default timeout.
@@ -252,7 +290,33 @@ func NewGoogleStorageBucketProvider(name string, timeout time.Duration, creds *g
 	return bucket, nil
 }
 
+// Deciding to only close on the client, instead of tracking weather or not a
+// read operation or write operation was being performed and closing that reader
+// and writer. Might have to change this.
+func (g *GoogleStorageBucketProvider) Close() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.clientClosed || g.client == nil {
+		return nil
+	}
+
+	err := g.client.Close()
+	if err != nil {
+		return err
+	}
+
+	g.clientClosed = true
+
+	return nil
+}
+
 func (g *GoogleStorageBucketProvider) ReadData(fileName string, store PublicProviderStore, fmtr Formatter) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.client == nil {
+		return errors.New("datasource googlestoragebucketprovider: cannot read from google storage without a valid client.")
+	}
 	// Creates a local scope for cancellation..
 	// TODO: In the future consider passing contexts and return contexts instead.
 	ctx := context.Background()
@@ -283,6 +347,12 @@ func (g *GoogleStorageBucketProvider) ReadData(fileName string, store PublicProv
 }
 
 func (g *GoogleStorageBucketProvider) DumpData(fileName string, store PublicProviderStore, fmtr Formatter) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.client == nil {
+		return errors.New("datasource googlestoragebucketprovider: cannot read from google storage without a valid client.")
+	}
+
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, g.DefaultTimeout)
 	defer cancel()
@@ -315,8 +385,9 @@ var _ io.Writer = (*LocalFileProvider)(nil)
 type LocalFileProvider struct {
 	*os.File
 
-	Filename string
 	mu       sync.RWMutex
+	Filename string
+	closed   bool
 }
 
 func NewLocalFileProvider(fileName string) (*LocalFileProvider, error) {
@@ -333,7 +404,7 @@ func (l *LocalFileProvider) ReadData(fileName string, store PublicProviderStore,
 		return err
 	}
 
-	defer l.File.Close()
+	defer l.Close()
 
 	chunk := make([]byte, 1<<10)
 
@@ -368,7 +439,7 @@ func (l *LocalFileProvider) DumpData(fileName string, store PublicProviderStore,
 	if err != nil {
 		return err
 	}
-	defer l.File.Close()
+	defer l.Close()
 
 	contents := store.ListContents()
 
@@ -379,4 +450,18 @@ func (l *LocalFileProvider) DumpData(fileName string, store PublicProviderStore,
 	_, err = l.Write(content)
 
 	return err
+}
+
+// My thought here is if the AutocompleteService.Close() is called while a write
+// or read operation is currently in progress. We can go ahead and shut it down.
+func (l *LocalFileProvider) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed || l.File == nil {
+		return nil
+	}
+
+	l.closed = true
+
+	return l.File.Close()
 }

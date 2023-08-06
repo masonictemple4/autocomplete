@@ -7,7 +7,6 @@ import (
 
 func TestDefaultFormatter(t *testing.T) {
 	var _ Formatter = (*DefaultFormat)(nil)
-
 	fmtr := DefaultFormat{}
 
 	// Failing JSON file, invalid format.
@@ -38,6 +37,12 @@ func TestDefaultFormatter(t *testing.T) {
 	if len(keywords) != 5 {
 		t.Errorf("Expected 5, got %v", len(keywords))
 	}
+
+}
+
+func TestKeywordListFormatter(t *testing.T) {
+	var _ Formatter = (*KeywordObjectListFormat)(nil)
+	fmtr := KeywordObjectListFormat{}
 
 }
 
