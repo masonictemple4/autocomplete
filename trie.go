@@ -44,8 +44,8 @@ func (t *trie) Insert(word string) {
 }
 
 func (t *trie) Autocomplete(prefix string) []string {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	// 	t.mu.RLock()
+	// 	defer t.mu.RUnlock()
 
 	var results []string
 
