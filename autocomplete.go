@@ -248,7 +248,7 @@ func (a *AutocompleteService) Add(word string) {
 	a.store.Insert(word)
 }
 
-func (a *AutocompleteService) GetContents(word string) []string {
+func (a *AutocompleteService) GetContents() []string {
 	if a.isClosed {
 		return []string{}
 	}
