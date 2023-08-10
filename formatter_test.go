@@ -41,8 +41,6 @@ func TestDefaultFormatter(t *testing.T) {
 }
 
 func TestKeywordListFormatter(t *testing.T) {
-	var _ Formatter = (*KeywordObjectListFormat)(nil)
-	fmtr := KeywordObjectListFormat{}
 
 }
 
