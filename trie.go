@@ -72,7 +72,6 @@ func (t *trie) findAllChildren(node *trieNode, prefix string, results *[]string)
 	// prefix which is the full word.
 	if node.isEnd {
 		*results = append(*results, prefix)
-		return
 	}
 
 	for r, child := range node.children {
