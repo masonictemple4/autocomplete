@@ -15,11 +15,22 @@ import (
 const SERVICE_NAME = "autocomplete"
 
 type autocompleter interface {
+	// Insert will insert the word into the in-memory data structure
+	// representing the store.
 	Insert(word string)
+	// Autocomplete will take a prefix and generate a list of words
+	// that begin with that prefix.
 	Autocomplete(prefix string) []string
+	// Contains will take in a word and return whether or not it
+	// exists in the store.
 	Contains(word string) bool
+	// ListContents will return every word currently stored in the
+	// completion service.
 	ListContents() []string
+	// Visualize returns a graphviz `.dot` file in the form of a byte slice
+	// so that the caller can use it to visualize the data structure.
 	Visualize(w io.Writer) error
+	// Clear will clear the contents of the data structure.
 	Clear()
 }
 
