@@ -5,7 +5,9 @@
 package autocomplete
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"runtime"
 	"time"
 )
@@ -13,10 +15,22 @@ import (
 const SERVICE_NAME = "autocomplete"
 
 type autocompleter interface {
+	// Insert will insert the word into the in-memory data structure
+	// representing the store.
 	Insert(word string)
+	// Autocomplete will take a prefix and generate a list of words
+	// that begin with that prefix.
 	Autocomplete(prefix string) []string
+	// Contains will take in a word and return whether or not it
+	// exists in the store.
 	Contains(word string) bool
+	// ListContents will return every word currently stored in the
+	// completion service.
 	ListContents() []string
+	// Visualize returns a graphviz `.dot` file in the form of a byte slice
+	// so that the caller can use it to visualize the data structure.
+	Visualize(w io.Writer) error
+	// Clear will clear the contents of the data structure.
 	Clear()
 }
 
@@ -253,4 +267,17 @@ func (a *AutocompleteService) GetContents() []string {
 		return []string{}
 	}
 	return a.store.ListContents()
+}
+
+// TODO: Add future functionality to allow the user to pass in a data source instead.
+// This requires a redesign of the formatter and provider interfaces, mainly the formatter.
+// It was designed specifically around keywords, however it's probably going to need to grow
+// later on as we support various data structures.
+func (a *AutocompleteService) DisplayGraph() ([]byte, error) {
+	var buf bytes.Buffer
+	err := a.store.Visualize(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

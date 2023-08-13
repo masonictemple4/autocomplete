@@ -1,6 +1,14 @@
 package autocomplete
 
-import "sync"
+import (
+	"container/list"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"strconv"
+	"sync"
+)
 
 var _ autocompleter = (*ternarysearchtree)(nil)
 
@@ -16,17 +24,16 @@ type ternarysearchtree struct {
 	mu sync.RWMutex
 }
 
-func nNewTSTNode(char rune) *tstNode {
+func newTSTNode(char rune) *tstNode {
 	return &tstNode{Char: char, IsEnd: false}
 }
 
 func newTernarySearchTree(word string) *ternarysearchtree {
 	tst := &ternarysearchtree{}
-	if word == "" {
-		return tst
-	}
 
-	tst.Insert(word)
+	if word != "" {
+		tst.Insert(word)
+	}
 	return tst
 }
 
@@ -40,7 +47,7 @@ func (t *ternarysearchtree) insert(node *tstNode, word string, index int) *tstNo
 	char := rune(word[index])
 
 	if node == nil {
-		node = nNewTSTNode(char)
+		node = newTSTNode(char)
 	}
 
 	if char < node.Char {
@@ -149,4 +156,129 @@ func (t *ternarysearchtree) ListContents() []string {
 // Make the root empty, removing all references to the old data.
 func (t *ternarysearchtree) Clear() {
 	t.Root = &tstNode{}
+}
+
+func (t *ternarysearchtree) Visualize(w io.Writer) error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if t.Root == nil {
+		return errors.New("tst visualizer: root is nil")
+	}
+
+	nodeAttrs := `[color=lightblue fillcolor=lightblue fontcolor=black shape=record style="filled, rounded"]`
+	// write header
+	if _, err := fmt.Fprintln(w, "digraph {"); err != nil {
+		return err
+	}
+
+	// write node attributes
+	if _, err := fmt.Fprintf(w, "\tnode %s\n", nodeAttrs); err != nil {
+		return err
+	}
+
+	// Walk pre order and call dotwrite func.
+	if err := t.writeDot(w, t.Root, nil); err != nil {
+		return err
+	}
+
+	// write closing bracket
+	if _, err := fmt.Fprintln(w, "}"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *tstNode) dotId() int64 {
+	addr := fmt.Sprintf("%p", n)
+	id, err := strconv.ParseInt(addr[2:], 16, 64)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+func (t *ternarysearchtree) writeDot(w io.Writer, node *tstNode, err error) error {
+	if node == nil {
+		return nil
+	}
+
+	list := list.New()
+	list.PushFront(node)
+
+	for list.Len() > 0 {
+		node = list.Remove(list.Front()).(*tstNode)
+
+		if err := dotWriteFunc(w, node); err != nil {
+			return err
+		}
+
+		if node.Right != nil {
+			list.PushFront(node.Right)
+		}
+
+		if node.Mid != nil {
+			list.PushFront(node.Mid)
+		}
+
+		if node.Left != nil {
+			list.PushFront(node.Left)
+		}
+	}
+
+	return nil
+}
+
+func dotWriteFunc(w io.Writer, n *tstNode) error {
+	nodeId := n.dotId()
+	val := string(n.Char)
+	if n.Char == 0 {
+		val = "root"
+	}
+
+	if n.IsEnd {
+		val += " *"
+	}
+
+	if n.IsEnd {
+		_, err := fmt.Fprintf(w, "\t%d [label=\"<l>|<v> %s|<r>\" ]\n", nodeId, val)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err := fmt.Fprintf(w, "\t%d [label=\"<l>|<v> %s|<r>\" ]\n", nodeId, val)
+		if err != nil {
+			return err
+		}
+	}
+
+	if n.Left != nil {
+		if _, err := fmt.Fprintf(w, "\t%d:l -> %d:v\n", nodeId, n.Left.dotId()); err != nil {
+			return err
+		}
+	}
+
+	if n.Mid != nil {
+		if _, err := fmt.Fprintf(w, "\t%d:v -> %d:v\n", nodeId, n.Mid.dotId()); err != nil {
+			return err
+		}
+	}
+
+	if n.Right != nil {
+		if _, err := fmt.Fprintf(w, "\t%d:r -> %d:v\n", nodeId, n.Right.dotId()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *ternarysearchtree) PrintJSON() {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	b, err := json.MarshalIndent(t.Root, "", "  ")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(b))
 }

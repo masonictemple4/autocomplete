@@ -1,6 +1,12 @@
 package autocomplete
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"io"
+	"strconv"
+	"sync"
+)
 
 // Make sure we implement the auto completer
 var _ autocompleter = (*trie)(nil)
@@ -117,4 +123,73 @@ func (t *trie) ListContents() []string {
 // Make the root empty, removing all references to the old data.
 func (t *trie) Clear() {
 	t.Root = &trieNode{children: make(map[rune]*trieNode)}
+}
+
+func (t *trie) Visualize(w io.Writer) error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if t.Root == nil {
+		return errors.New("trie visualizer: root is nil")
+	}
+
+	nodeAttrs := `[color=lightblue fillcolor=lightblue fontcolor=black shape=record style="filled, rounded"]`
+	// write header
+	if _, err := fmt.Fprintln(w, "digraph {"); err != nil {
+		return err
+	}
+
+	// write node attributes
+	if _, err := fmt.Fprintf(w, "\tnode %s\n", nodeAttrs); err != nil {
+		return err
+	}
+
+	// Walk pre order and call dotwrite func.
+	if err := writeDot(w, t.Root, "root"); err != nil {
+		return err
+	}
+
+	// write closing bracket
+	if _, err := fmt.Fprintln(w, "}"); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (n *trieNode) dotId() int64 {
+	addr := fmt.Sprintf("%p", n)
+	id, err := strconv.ParseInt(addr[2:], 16, 64)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+func writeDot(w io.Writer, node *trieNode, val string) error {
+	if node == nil {
+		return nil
+	}
+
+	curr := node
+	nodeId := curr.dotId()
+	var endLabel string
+	if curr.isEnd {
+		endLabel = "*"
+	} else {
+		endLabel = ""
+	}
+	if _, err := fmt.Fprintf(w, "\t%d [label=\"<l>|<v> %s%s|<r>\"]\n", nodeId, val, endLabel); err != nil {
+		return err
+	}
+	for r, child := range curr.children {
+		if _, err := fmt.Fprintf(w, "\t%d:v -> %d:v\n", nodeId, child.dotId()); err != nil {
+			return err
+		}
+		if err := writeDot(w, child, string(r)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
