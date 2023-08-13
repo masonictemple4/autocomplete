@@ -2,6 +2,7 @@ package autocomplete
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -30,5 +31,18 @@ func TestTrie(t *testing.T) {
 	}
 
 	fmt.Printf("The results: %v\n", results)
+
+	// Test visualizer
+	dotFile, err := os.Create("trie.dot")
+	if err != nil {
+		t.Errorf("Error creating dot file: %v", err)
+	}
+	defer dotFile.Close()
+
+	if err := trie.Visualize(dotFile); err != nil {
+		t.Errorf("Error visualizing trie: %v", err)
+	}
+
+	os.Remove("trie.dot")
 
 }

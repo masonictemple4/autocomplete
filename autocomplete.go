@@ -5,7 +5,9 @@
 package autocomplete
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"runtime"
 	"time"
 )
@@ -17,6 +19,7 @@ type autocompleter interface {
 	Autocomplete(prefix string) []string
 	Contains(word string) bool
 	ListContents() []string
+	Visualize(w io.Writer) error
 	Clear()
 }
 
@@ -253,4 +256,17 @@ func (a *AutocompleteService) GetContents() []string {
 		return []string{}
 	}
 	return a.store.ListContents()
+}
+
+// TODO: Add future functionality to allow the user to pass in a data source instead.
+// This requires a redesign of the formatter and provider interfaces, mainly the formatter.
+// It was designed specifically around keywords, however it's probably going to need to grow
+// later on as we support various data structures.
+func (a *AutocompleteService) DisplayGraph() ([]byte, error) {
+	var buf bytes.Buffer
+	err := a.store.Visualize(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
