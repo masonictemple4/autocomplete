@@ -9,34 +9,42 @@ func TestDefaultFormatter(t *testing.T) {
 	var _ Formatter = (*DefaultFormat)(nil)
 	fmtr := DefaultFormat{}
 
-	// Failing JSON file, invalid format.
-	byts, err := os.ReadFile("icons.json")
+	t.Run("Default format should work with json", func(t *testing.T) {
+		// Failing JSON file, invalid format.
+		byts, err := os.ReadFile("icons.json")
 
-	keywords, err := fmtr.FormatRead(byts, "icons.json")
-	if err == nil {
-		t.Errorf("Expected non-nil, got %v", err)
-	}
+		keywords, err := fmtr.FormatRead(byts, "icons.json")
+		if err == nil {
+			t.Errorf("Expected non-nil, got %v", err)
+		}
 
-	// Passing JSON
-	byts, cleanup := testJsonFile(t, "test.json")
-	keywords, err = fmtr.FormatRead(byts, "test.json")
-	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
-	if len(keywords) != 3 {
-		t.Errorf("Expected 3, got %v", len(keywords))
-	}
-	cleanup()
+		// Passing JSON
+		byts, cleanup := testJsonFile(t, "test.json")
+		keywords, err = fmtr.FormatRead(byts, "test.json")
+		if err != nil {
+			t.Errorf("Expected nil, got %v", err)
+		}
+		if len(keywords) != 3 {
+			t.Errorf("Expected 3, got %v", len(keywords))
+		}
+		cleanup()
 
-	// Passing TXT
-	byts, cleanup = testTxtFile(t, "test.txt")
-	keywords, err = fmtr.FormatRead(byts, "test.txt")
-	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
-	if len(keywords) != 5 {
-		t.Errorf("Expected 5, got %v", len(keywords))
-	}
+	})
+
+	t.Run("Default format shoudl work with txt", func(t *testing.T) {
+		// Passing TXT
+		byts, cleanup := testTxtFile(t, "test.txt")
+		keywords, err := fmtr.FormatRead(byts, "test.txt")
+		if err != nil {
+			t.Errorf("Expected nil, got %v", err)
+		}
+		if len(keywords) != 4 {
+			t.Errorf("Expected 4, got %v", len(keywords))
+		}
+
+		cleanup()
+
+	})
 
 }
 
