@@ -74,8 +74,21 @@ func (f DefaultFormat) FormatRead(data []byte, fileName string) ([]string, error
 	case "csv":
 		// Use your preferred CSV parsing library here
 		// For instance, you can use the 'encoding/csv' package provided by the standard library
-		reader := csv.NewReader(bytes.NewReader(data))
-		return reader.Read()
+		srcRdr := bytes.NewReader(data)
+		reader := csv.NewReader(srcRdr)
+
+		full, err := reader.ReadAll()
+		if err != nil {
+			return nil, err
+		}
+
+		var results []string
+		// Skips headers
+		for _, innerObj := range full[1:] {
+			results = append(results, innerObj...)
+		}
+
+		return results, nil
 	case "yaml":
 		var obj DefaultFormat
 		if err := yaml.Unmarshal(data, &obj); err != nil {
